@@ -56,20 +56,6 @@ public class MassSpringCloth : MonoBehaviour
 	    private int vertexA;
 	    private int vertexB;
 	    private int vertexOther;
-
-	    public Edge(int vA, int vB)  // Delete when springs are fixed :)  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-	    {
-		    if (vA <= vB)  // The smallest vertex index is always in the first position
-		    {
-			    vertexA = vA;
-			    vertexB = vB;
-		    }
-		    else
-		    {
-			    vertexA = vB;
-			    vertexB = vA;
-		    }
-	    }
 	    
 	    public Edge(int vA, int vB, int vO)
 	    {
@@ -119,7 +105,7 @@ public class MassSpringCloth : MonoBehaviour
 	    
 	    public override int GetHashCode()
 	    {
-		    return vertexA.GetHashCode() ^ vertexB.GetHashCode();
+		    return (vertexA, vertexB, vertexOther).GetHashCode();
 	    }
     }
     
@@ -146,29 +132,20 @@ public class MassSpringCloth : MonoBehaviour
 		    
 		    Node node = nodeGameObject.GetComponent<Node>();  // Get actual node component that is being processed
 		    
-		    node.GetComponent<Transform>().parent = this.transform;  // Assign this MassSpringCloth as parent transform of the nodes
+		    node.GetComponent<Transform>().parent = transform;  // Assign this MassSpringCloth as parent transform of the nodes
 		    
-		    /////// ASK QUESTION: 2 options to solve this position assignment ///////////
+		    ///////////////////////// Should work both ways /////////////////////////////
 		    //node.GetComponent<Transform>().position = transform.TransformPoint(vertex);  // Locate the nodes in the positions of the mesh vertices
 		    node.pos = transform.TransformPoint(vertex);  // Locate the nodes in the positions of the mesh vertices (Global positions)
 		    /////////////////////////////////////////////////////////////////////////////
 		    
 		    node.mass = 1.0f;  // Set node mass
-		    // Quad fixing script (hardcoded)
-		    //if (IdxNode == 2 || IdxNode == 3) node.isFixed = true;  // Set node 0 to fixed for debugging the simulation
-		    // Full plane textile fixing script (hardcoded)
-		    //if (IdxNode >= 55 && IdxNode <= 65) node.isFixed = true;  // Set middle nodes to fixed for bending simulation
-		    //if (IdxNode >= 110 && IdxNode <= 120) node.isFixed = true;  // Set middle nodes to fixed for holding simulation
+
 
 		    nodes.Add(node);  // Finally add node to the nodes list to iterate through all of them on fixed update loop
 		    idxNode++;
 	    }
-	    
-	    // ANNOTATION:
-	    // An upgrade would be assigning Node behaviour to vertices of the mesh while iterating the triangles
-	    // because triangle iterating is faster than vertex iterating, due to the complexity of the meshes of
-	    // this assignment, this is not necessary but it still needs to be mentioned
-	    
+
 	    // Assign each edge of the mesh a spring behaviour
 	    Debug.Log("Assigning each edge of the mesh a spring behaviour...");
 	    _triangles = _mesh.triangles;
@@ -182,9 +159,9 @@ public class MassSpringCloth : MonoBehaviour
 		    {
 			    // POSSIBLE OPTIMIZATION FOR MILLION VERTEX MESHES: CREATE NODES IN THIS LOOP!!! (Triangle iteration)
 			    // Edges list initialization
-			    edges.Add(new Edge(_triangles[topologyIdx - 1], _triangles[topologyIdx]));
-			    edges.Add(new Edge(_triangles[topologyIdx], _triangles[topologyIdx + 1]));
-			    edges.Add(new Edge(_triangles[topologyIdx + 1], _triangles[topologyIdx - 1]));
+			    edges.Add(new Edge(_triangles[topologyIdx - 1], _triangles[topologyIdx], _triangles[topologyIdx + 1]));
+			    edges.Add(new Edge(_triangles[topologyIdx], _triangles[topologyIdx + 1], _triangles[topologyIdx - 1]));
+			    edges.Add(new Edge(_triangles[topologyIdx + 1], _triangles[topologyIdx - 1], _triangles[topologyIdx]));
 			    topologyIdx += 3;  // Update the _triangle access index (TopologyIdx) to step for the next 3 edges iter.
 		    }
 
@@ -222,17 +199,17 @@ public class MassSpringCloth : MonoBehaviour
 				    // FINALLY ADD FLEXION SPRING FROM VERTEX_A TO VERTEX_B
 				    // Initialize the actual processed edge as GameObjects
 				    GameObject flexionSpringGameObject = new GameObject();
-				    flexionSpringGameObject.name = "Flexion Spring A_" + (edges[i + 1].GetVertexA() + 1) + " B_" + (edges[i + 1].GetVertexB() - 1);
+				    flexionSpringGameObject.name = "Flexion Spring A_" + edges[i].GetVertexOther() + " B_" + edges[i + 1].GetVertexOther();
 				    flexionSpringGameObject.AddComponent<Spring>(); // Assign a spring component into the new GameObject
 				    
 				    // Retrieve the actual springs
 				    Spring flexionSpring = flexionSpringGameObject.GetComponent<Spring>();
 				    
-				    flexionSpring.GetComponent<Transform>().parent = this.transform;  // Assign MassSpringCloth parent transform
+				    flexionSpring.GetComponent<Transform>().parent = transform;  // Assign MassSpringCloth parent transform
 				    
 				    // Access the node idx and populate the spring components nodes
-				    flexionSpring.nodeA = nodes[edges[i + 1].GetVertexA() + 1];
-				    flexionSpring.nodeB = nodes[edges[i + 1].GetVertexB() - 1];
+				    flexionSpring.nodeA = nodes[edges[i].GetVertexOther()];
+				    flexionSpring.nodeB = nodes[edges[i + 1].GetVertexOther()];
 				    flexionSpring.stiffness = 100.0f; // Add a stiffness value to the flexion spring way less (<<) than a traction one
 				    
 				    // Finally add the spring to the springs list
