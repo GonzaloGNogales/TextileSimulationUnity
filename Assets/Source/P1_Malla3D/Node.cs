@@ -1,6 +1,4 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 
 public class Node : MonoBehaviour {
 
@@ -14,8 +12,8 @@ public class Node : MonoBehaviour {
     // Use this for initialization
     private void Awake()
     {
-        this.pos = transform.position;
-        this.vel = Vector3.zero;
+        pos = transform.position;
+        vel = Vector3.zero;
     }
 
     void Start () {
@@ -28,6 +26,9 @@ public class Node : MonoBehaviour {
 
     public void ComputeForces()
     {
-        force += mass * transform.parent.GetComponent<MassSpringCloth>().gravity;
+        // Added damping force in this node proportional to it's mass (40% of the mass) 
+        // This damping factor is used to scale the actual node velocity in order to subtract it
+        // from the => Total Node Force (Fa) = 2nd Newton Law: m*g - Damping: damping * velocity
+        force += mass * transform.parent.GetComponent<MassSpringCloth>().gravity - 0.4f * mass * vel;
     }
 }

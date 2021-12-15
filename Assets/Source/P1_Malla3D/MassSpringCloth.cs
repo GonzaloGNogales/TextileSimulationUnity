@@ -13,11 +13,12 @@ public class MassSpringCloth : MonoBehaviour
 	/// </summary>
 	public MassSpringCloth()
 	{
-		this.paused = true;
-		this.substeps = 5;
-		this.timeStep = 0.01f;  // Default value 0.01f
-		this.gravity = new Vector3 (0.0f, -9.81f, 0.0f);
-		this.integrationMethod = Integration.Symplectic;
+		paused = true;
+		substeps = 5;
+		timeStep = 0.01f;  // Default value 0.01f
+		gravity = new Vector3 (0.0f, -9.81f, 0.0f);
+		wind = new Vector3(3.4f, 0.0f, 0.0f);
+		integrationMethod = Integration.Symplectic;
 	}
 
 	/// <summary>
@@ -26,8 +27,9 @@ public class MassSpringCloth : MonoBehaviour
 	public enum Integration
 	{
 		Explicit = 0,
-		Symplectic = 1,
-	};
+		// Semi-Implicit Euler Integration Explicit in Velocity and Implicit in Position
+		Symplectic = 1
+	}
 
 	#region InEditorVariables
 
@@ -35,6 +37,7 @@ public class MassSpringCloth : MonoBehaviour
 	public int substeps;
 	public float timeStep;
     public Vector3 gravity;
+    public Vector3 wind;
 	public Integration integrationMethod;
     public List<Node> nodes;
     public List<Spring> springs;
@@ -42,6 +45,7 @@ public class MassSpringCloth : MonoBehaviour
     #endregion
 
     #region OtherVariables
+    
     // Variables for initializing (vertices - nodes) and (edges - springs)
     private Mesh _mesh;
     private Vector3[] _vertices;
