@@ -27,9 +27,9 @@ public class FixerOnStart : MonoBehaviour
             foreach (Node node in clothNodes)
             {
                 // Transform the node position from local coordinates to global with the fixer transform
-                Vector3 nodeLocalPosition = transform.InverseTransformPoint(node.pos);  // Local position of the node with respect to the fixer
-                Vector3 nodeGlobalPosition = transform.TransformPoint(nodeLocalPosition);  // Global position of the node with respect to the fixer
-                if (_fixerCollider.bounds.Contains(nodeGlobalPosition))
+                //Vector3 nodeLocalPosition = transform.InverseTransformPoint(node.pos);  // Local position of the node with respect to the fixer
+                //Vector3 nodeGlobalPosition = transform.TransformPoint(nodeLocalPosition);  // Global position of the node with respect to the fixer
+                if (_fixerCollider.bounds.Contains(node.pos))
                 {            
                     node.isFixed = true; 
                     _onStartFixedNodes.Add(node);
@@ -50,9 +50,9 @@ public class FixerOnStart : MonoBehaviour
         foreach (Node node in _onStartFixedNodes)
         {
             // Transform the node position from local coordinates to global with the fixer transform
-            Vector3 nodeLocalPosition = transform.InverseTransformPoint(node.pos);  // Local position of the node with respect to the fixer
-            Vector3 nodeGlobalPosition = transform.TransformPoint(nodeLocalPosition);  // Global position of the node with respect to the fixer
-            if (_fixerCollider.bounds.Contains(nodeGlobalPosition))
+            // Vector3 nodeLocalPosition = transform.InverseTransformPoint(node.pos);  // Local position of the node with respect to the fixer
+            // Vector3 nodeGlobalPosition = transform.TransformPoint(nodeLocalPosition);  // Global position of the node with respect to the fixer
+            if (_fixerCollider.bounds.Contains(node.pos))
             {            
                 Vector3 movementQuantity = finalFixerPosition - _initialFixerPosition;  // Measure the fixer movement in xyz axis
                 node.pos += movementQuantity;  // Add the movement quantity measured to the fixed nodes position

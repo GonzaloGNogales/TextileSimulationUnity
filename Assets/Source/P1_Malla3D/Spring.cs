@@ -33,7 +33,7 @@ public class Spring : MonoBehaviour {
         Vector3 u = nodeA.pos - nodeB.pos;
         u.Normalize();
         Vector3 force = - stiffness * (length - length0) * u;
-            
+        
         // Add damping force for the spring to slow down correctly (it is a subtraction as the damping factor is negative)
         force += - 0.01f * stiffness * Vector3.Dot(u,nodeA.vel - nodeB.vel) * u;
         nodeA.force += force;

@@ -55,29 +55,51 @@ public class MassSpringCloth : MonoBehaviour
     {
 	    private int vertexA;
 	    private int vertexB;
+	    private int vertexOther;
 
-	    public Edge(int vA, int vB)
+	    public Edge(int vA, int vB)  // Delete when springs are fixed :)  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	    {
 		    if (vA <= vB)  // The smallest vertex index is always in the first position
 		    {
-			    this.vertexA = vA;
-			    this.vertexB = vB;
+			    vertexA = vA;
+			    vertexB = vB;
 		    }
 		    else
 		    {
-			    this.vertexA = vB;
-			    this.vertexB = vA;
+			    vertexA = vB;
+			    vertexB = vA;
 		    }
+	    }
+	    
+	    public Edge(int vA, int vB, int vO)
+	    {
+		    if (vA <= vB)  // The smallest vertex index is always in the first position
+		    {
+			    vertexA = vA;
+			    vertexB = vB;
+		    }
+		    else
+		    {
+			    vertexA = vB;
+			    vertexB = vA;
+		    }
+
+		    vertexOther = vO;
 	    }
 
 	    public int GetVertexA()
 	    {
-		    return this.vertexA;
+		    return vertexA;
 	    }
 	    
 	    public int GetVertexB()
 	    {
-		    return this.vertexB;
+		    return vertexB;
+	    }
+
+	    public int GetVertexOther()
+	    {
+		    return vertexOther;
 	    }
 	    
 	    public override bool Equals(object obj)
@@ -127,7 +149,7 @@ public class MassSpringCloth : MonoBehaviour
 		    node.GetComponent<Transform>().parent = this.transform;  // Assign this MassSpringCloth as parent transform of the nodes
 		    
 		    /////// ASK QUESTION: 2 options to solve this position assignment ///////////
-		    //node.GetComponent<Transform>().position = vertex;  // Locate the nodes in the positions of the mesh vertices
+		    //node.GetComponent<Transform>().position = transform.TransformPoint(vertex);  // Locate the nodes in the positions of the mesh vertices
 		    node.pos = transform.TransformPoint(vertex);  // Locate the nodes in the positions of the mesh vertices (Global positions)
 		    /////////////////////////////////////////////////////////////////////////////
 		    
@@ -173,7 +195,7 @@ public class MassSpringCloth : MonoBehaviour
 			    if (vAcomparison == 0) return e1.GetVertexB().CompareTo(e2.GetVertexB());
 			    return vAcomparison;
 		    });
-
+		    
 		    for (int i = 0; i < edges.Count; ++i)
 		    {
 			    if (i != edges.Count - 1 && edges[i].Equals(edges[i + 1]))  // Duplicated edge is found
@@ -192,7 +214,7 @@ public class MassSpringCloth : MonoBehaviour
 				    // Access the node idx and populate the spring components nodes
 				    tractionSpring.nodeA = nodes[edges[i].GetVertexA()];
 				    tractionSpring.nodeB = nodes[edges[i].GetVertexB()];
-				    tractionSpring.stiffness = 500; // Add a stiffness value to the traction spring
+				    tractionSpring.stiffness = 500.0f; // Add a stiffness value to the traction spring
 				    
 				    // Finally add the spring to the springs list
 				    springs.Add(tractionSpring);
@@ -211,7 +233,7 @@ public class MassSpringCloth : MonoBehaviour
 				    // Access the node idx and populate the spring components nodes
 				    flexionSpring.nodeA = nodes[edges[i + 1].GetVertexA() + 1];
 				    flexionSpring.nodeB = nodes[edges[i + 1].GetVertexB() - 1];
-				    flexionSpring.stiffness = 100; // Add a stiffness value to the flexion spring way less (<<) than a traction one
+				    flexionSpring.stiffness = 100.0f; // Add a stiffness value to the flexion spring way less (<<) than a traction one
 				    
 				    // Finally add the spring to the springs list
 				    springs.Add(flexionSpring);
@@ -258,8 +280,8 @@ public class MassSpringCloth : MonoBehaviour
             return; // Not simulating
         
         // Substeps simulation
-        //for (int step = 0; step < substeps; ++step)
-        //{
+        for (int step = 0; step < substeps; ++step)
+        {
 	        // Select integration method
 	        switch (integrationMethod)
 	        {
@@ -272,7 +294,7 @@ public class MassSpringCloth : MonoBehaviour
 		        default:
 			        throw new System.Exception("[ERROR] Should never happen!");
 	        }
-        //}
+        }
         
         // Iterate through every vertex of the mesh and assign it's new position value, previously computed in nodes list
         for (int i = 0; i < nodes.Count; i++) _vertices[i] = transform.InverseTransformPoint(nodes[i].pos);
