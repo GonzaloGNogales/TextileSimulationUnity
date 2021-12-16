@@ -22,14 +22,18 @@ public class Spring : MonoBehaviour {
         transform.rotation = Quaternion.FromToRotation(Vector3.up, u);
     }
 
-    public void UpdateLength ()
-    {
+    public void UpdateLength () {
         length = (nodeA.pos - nodeB.pos).magnitude;
     }
 
-    public void ComputeForces()
+    public void SubstepStartLengtUpdate()
     {
-        // Calculate spring elastic force using Hooke's Law
+        UpdateLength();
+        length0 = length;
+    }
+
+    public void ComputeForces() {
+        // Calculate spring elastic force using Hooke's Law for node A
         Vector3 u = nodeA.pos - nodeB.pos;
         u.Normalize();
         Vector3 force = - stiffness * (length - length0) * u;

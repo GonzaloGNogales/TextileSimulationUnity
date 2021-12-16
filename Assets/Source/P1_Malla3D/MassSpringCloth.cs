@@ -6,15 +6,13 @@ using System.Collections.Generic;
 /// implementation using diverse integration methods: explicit,
 /// implicit, Verlet and semi-implicit.
 /// </summary>
-public class MassSpringCloth : MonoBehaviour 
-{
+public class MassSpringCloth : MonoBehaviour {
 	/// <summary>
 	/// Default constructor. Zero all. 
 	/// </summary>
-	public MassSpringCloth()
-	{
+	public MassSpringCloth() {
 		paused = true;
-		substeps = 5;
+		substeps = 1;
 		timeStep = 0.01f;  // Default value 0.01f
 		gravity = new Vector3 (0.0f, -9.81f, 0.0f);
 		wind = new Vector3(3.4f, 0.0f, 0.0f);
@@ -24,8 +22,7 @@ public class MassSpringCloth : MonoBehaviour
 	/// <summary>
 	/// Integration method.
 	/// </summary>
-	public enum Integration
-	{
+	public enum Integration {
 		Explicit = 0,
 		// Semi-Implicit Euler Integration Explicit in Velocity and Implicit in Position
 		Symplectic = 1
@@ -50,22 +47,19 @@ public class MassSpringCloth : MonoBehaviour
     private Mesh _mesh;
     private Vector3[] _vertices;
     private int[] _triangles;
+    private int _actualIteration;
 
-    private class Edge
-    {
+    private class Edge {
 	    private int vertexA;
 	    private int vertexB;
 	    private int vertexOther;
 	    
-	    public Edge(int vA, int vB, int vO)
-	    {
-		    if (vA <= vB)  // The smallest vertex index is always in the first position
-		    {
+	    public Edge(int vA, int vB, int vO) {
+		    if (vA <= vB) {  // The smallest vertex index is always in the first position
 			    vertexA = vA;
 			    vertexB = vB;
 		    }
-		    else
-		    {
+		    else {
 			    vertexA = vB;
 			    vertexB = vA;
 		    }
@@ -73,38 +67,29 @@ public class MassSpringCloth : MonoBehaviour
 		    vertexOther = vO;
 	    }
 
-	    public int GetVertexA()
-	    {
+	    public int GetVertexA() {
 		    return vertexA;
 	    }
 	    
-	    public int GetVertexB()
-	    {
+	    public int GetVertexB() {
 		    return vertexB;
 	    }
 
-	    public int GetVertexOther()
-	    {
+	    public int GetVertexOther() {
 		    return vertexOther;
 	    }
 	    
-	    public override bool Equals(object obj)
-	    {
+	    public override bool Equals(object obj) {
 		    // If the passed object is null
 		    if (obj == null)
-		    {
 			    return false;
-		    }
 		    if (!(obj is Edge))
-		    {
 			    return false;
-		    }
 		    return (vertexA == ((Edge)obj).vertexA)
 		           && (vertexB == ((Edge)obj).vertexB);
 	    }
 	    
-	    public override int GetHashCode()
-	    {
+	    public override int GetHashCode() {
 		    return (vertexA, vertexB, vertexOther).GetHashCode();
 	    }
     }
@@ -113,10 +98,12 @@ public class MassSpringCloth : MonoBehaviour
 
     #region MonoBehaviour
 
-    public void Start()
-    {
+    public void Start() {
 	    // Retrieve the mesh filter component
 	    _mesh = GetComponent<MeshFilter>().mesh;
+	    _actualIteration = 0;
+	    timeStep /= substeps;
+	    Debug.Log("New substep: " + timeStep);
 	    
 	    // Assign each vertex of the mesh a node behaviour
 	    Debug.Log("Assigning each vertex of the mesh a node behaviour...");
@@ -152,11 +139,9 @@ public class MassSpringCloth : MonoBehaviour
 	    List<Edge> edges = new List<Edge>();
 
 	    // Create all NodeA - NodeB springs and assign them an stiffness k
-	    if (_triangles.Length % 3 == 0)  // Check if the number of indices is exact for a number of triangles
-	    {
+	    if (_triangles.Length % 3 == 0) {  // Check if the number of indices is exact for a number of triangles
 		    int topologyIdx = 1;
-		    for (int i = 0; i < _triangles.Length / 3; ++i)  // Initialize edges vertex _triangles indices
-		    {
+		    for (int i = 0; i < _triangles.Length / 3; ++i) {  // Initialize edges vertex _triangles indices
 			    // POSSIBLE OPTIMIZATION FOR MILLION VERTEX MESHES: CREATE NODES IN THIS LOOP!!! (Triangle iteration)
 			    // Edges list initialization
 			    edges.Add(new Edge(_triangles[topologyIdx - 1], _triangles[topologyIdx], _triangles[topologyIdx + 1]));
@@ -173,10 +158,8 @@ public class MassSpringCloth : MonoBehaviour
 			    return vAcomparison;
 		    });
 		    
-		    for (int i = 0; i < edges.Count; ++i)
-		    {
-			    if (i != edges.Count - 1 && edges[i].Equals(edges[i + 1]))  // Duplicated edge is found
-			    {
+		    for (int i = 0; i < edges.Count; ++i) {
+			    if (i != edges.Count - 1 && edges[i].Equals(edges[i + 1])) {  // Duplicated edge is found
 				    // ADD TRACTION SPRING FROM VERTEX_A TO VERTEX_B
 				    // Initialize the actual processed edge as GameObjects
 				    GameObject tractionSpringGameObject = new GameObject();
@@ -186,11 +169,12 @@ public class MassSpringCloth : MonoBehaviour
 				    // Retrieve the actual springs
 				    Spring tractionSpring = tractionSpringGameObject.GetComponent<Spring>();
 				    
-				    tractionSpring.GetComponent<Transform>().parent = this.transform;  // Assign MassSpringCloth parent transform
+				    tractionSpring.GetComponent<Transform>().parent = transform;  // Assign MassSpringCloth parent transform
 				    
 				    // Access the node idx and populate the spring components nodes
 				    tractionSpring.nodeA = nodes[edges[i].GetVertexA()];
 				    tractionSpring.nodeB = nodes[edges[i].GetVertexB()];
+				    tractionSpring.SubstepStartLengtUpdate();
 				    tractionSpring.stiffness = 500.0f; // Add a stiffness value to the traction spring
 				    
 				    // Finally add the spring to the springs list
@@ -210,7 +194,8 @@ public class MassSpringCloth : MonoBehaviour
 				    // Access the node idx and populate the spring components nodes
 				    flexionSpring.nodeA = nodes[edges[i].GetVertexOther()];
 				    flexionSpring.nodeB = nodes[edges[i + 1].GetVertexOther()];
-				    flexionSpring.stiffness = 100.0f; // Add a stiffness value to the flexion spring way less (<<) than a traction one
+				    flexionSpring.SubstepStartLengtUpdate();
+				    flexionSpring.stiffness = 50.0f; // Add a stiffness value to the flexion spring way less (<<) than a traction one
 				    
 				    // Finally add the spring to the springs list
 				    springs.Add(flexionSpring);
@@ -218,8 +203,7 @@ public class MassSpringCloth : MonoBehaviour
 				    // Skip the flexion spring index on the edges list and continue iterating
 				    i++;
 			    }
-			    else  // Actual edge is not duplicated
-			    {
+			    else {  // Actual edge is not duplicated
 				    // IN THIS CASE ALWAYS ADD TRACTION SPRING FROM VERTEX_A TO VERTEX_B
 				    // Initialize the actual processed edge as GameObjects
 				    GameObject tractionSpringGameObject = new GameObject();
@@ -229,12 +213,13 @@ public class MassSpringCloth : MonoBehaviour
 				    // Retrieve the actual springs
 				    Spring tractionSpring = tractionSpringGameObject.GetComponent<Spring>();
 				    
-				    tractionSpring.GetComponent<Transform>().parent = this.transform;  // Assign MassSpringCloth parent transform
+				    tractionSpring.GetComponent<Transform>().parent = transform;  // Assign MassSpringCloth parent transform
 				    
 				    // Access the node idx and populate the spring components nodes
 				    tractionSpring.nodeA = nodes[edges[i].GetVertexA()];
 				    tractionSpring.nodeB = nodes[edges[i].GetVertexB()];
-				    tractionSpring.stiffness = 500; // Add a stiffness value to the traction spring
+				    tractionSpring.SubstepStartLengtUpdate();
+				    tractionSpring.stiffness = 500.0f; // Add a stiffness value to the traction spring
 				    
 				    // Finally add the spring to the springs list
 				    springs.Add(tractionSpring);
@@ -245,19 +230,25 @@ public class MassSpringCloth : MonoBehaviour
 	    Debug.Log("Nodes and Springs initialization finished successfully!!!!");
     }
 
-    public void Update()
-	{
+    public void Update() {
 		if (Input.GetKeyUp (KeyCode.P))
 			paused = !paused;
+		
+		// Iterate through every vertex of the mesh and assign it's new position value, previously computed in nodes list
+		for (int i = 0; i < nodes.Count; i++) _vertices[i] = transform.InverseTransformPoint(nodes[i].pos);
+		_mesh.vertices = _vertices;  // Update mesh vertices position (Local positions)
+		// For the springs it is enough to perform this node assignation in the FixedUpdate as long as
+		// springs are only used to compute the elastic forces and apply them to the nodes, so only using nodes will work
 	}
 
-    public void FixedUpdate()
-    {
+    public void FixedUpdate() {
         if (paused)
             return; // Not simulating
-        
+
+        _actualIteration++;
+
         // Substeps simulation
-        for (int step = 0; step < substeps; ++step)
+        for (int i = 0; i < substeps; ++i)
         {
 	        // Select integration method
 	        switch (integrationMethod)
@@ -272,12 +263,6 @@ public class MassSpringCloth : MonoBehaviour
 			        throw new System.Exception("[ERROR] Should never happen!");
 	        }
         }
-        
-        // Iterate through every vertex of the mesh and assign it's new position value, previously computed in nodes list
-        for (int i = 0; i < nodes.Count; i++) _vertices[i] = transform.InverseTransformPoint(nodes[i].pos);
-        _mesh.vertices = _vertices;  // Update mesh vertices position (Local positions)
-        // For the springs it is enough to perform this node assignation in the FixedUpdate as long as
-        // springs are only used to compute the elastic forces and apply them to the nodes, so only using nodes will work
     }
     
     #endregion
@@ -285,8 +270,42 @@ public class MassSpringCloth : MonoBehaviour
     /// <summary>
     /// Performs a simulation step in 1D using Explicit integration.
     /// </summary>
-    private void StepExplicit()
-	{
+    private void StepExplicit() {
+		// Update forces for each node of the mesh
+		foreach (Node node in nodes) {
+			node.force = Vector3.zero;
+			node.ComputeForces();
+		}
+
+		// Update forces for each spring of the mesh
+		foreach (Spring spring in springs) {
+			spring.ComputeForces();
+		}
+
+		// Update explicit position and explicit velocity
+		foreach (Node node in nodes) {
+			if (!node.isFixed) {
+				node.pos += timeStep * node.vel;
+				node.vel += timeStep / node.mass * node.force;
+			}
+		}
+	
+		// Update the length of each spring after this step
+		foreach (Spring spring in springs) {
+			spring.UpdateLength();
+		}
+	}
+
+	/// <summary>
+	/// Performs a simulation step in 1D using Symplectic integration.
+	/// </summary>
+	private void StepSymplectic() {
+		// First spring length update
+		//foreach (Spring spring in springs)
+		//{
+		//	spring.SubstepStartLengtUpdate();
+		//}
+		
 		// Update forces for each node of the mesh
 		foreach (Node node in nodes)
 		{
@@ -300,55 +319,20 @@ public class MassSpringCloth : MonoBehaviour
 			spring.ComputeForces();
 		}
 
-		// Update explicit position and explicit velocity
+		// Update implicit position and explicit velocity
 		foreach (Node node in nodes)
 		{
 			if (!node.isFixed)
 			{
-				node.pos += timeStep * node.vel;
 				node.vel += timeStep / node.mass * node.force;
+				node.pos += timeStep * node.vel;
 			}
 		}
-	
+
 		// Update the length of each spring after this step
 		foreach (Spring spring in springs)
 		{
 			spring.UpdateLength();
 		}
-	}
-
-	/// <summary>
-	/// Performs a simulation step in 1D using Symplectic integration.
-	/// </summary>
-	private void StepSymplectic()
-	{
-		// Update forces for each node of the mesh
-        foreach (Node node in nodes)
-        {
-            node.force = Vector3.zero;
-            node.ComputeForces();
-        }
-        
-        // Update forces for each spring of the mesh
-        foreach (Spring spring in springs)
-        {
-            spring.ComputeForces();
-        }
-
-        // Update implicit position and explicit velocity
-        foreach (Node node in nodes)
-        {
-            if (!node.isFixed)
-            {
-                node.vel += timeStep / node.mass * node.force;
-                node.pos += timeStep * node.vel;
-            }
-        }
-
-        // Update the length of each spring after this step
-        foreach (Spring spring in springs)
-        {
-            spring.UpdateLength();
-        }
 	}
 }

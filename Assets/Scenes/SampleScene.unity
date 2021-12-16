@@ -157,7 +157,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   paused: 0
   substeps: 10
-  timeStep: 0.001
+  timeStep: 0.01
   gravity: {x: 0, y: -9.81, z: 0}
   wind: {x: 3.4, y: 0, z: 0}
   integrationMethod: 1
@@ -350,8 +350,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   paused: 0
-  substeps: 10
-  timeStep: 0.001
+  substeps: 50
+  timeStep: 0.01
   gravity: {x: 0, y: -9.81, z: 0}
   wind: {x: 3.4, y: 0, z: 0}
   integrationMethod: 1
