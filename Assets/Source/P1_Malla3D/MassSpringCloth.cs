@@ -16,7 +16,7 @@ public class MassSpringCloth : MonoBehaviour {
 		timeStep = 0.01f;  // Default value 0.01f
 		gravity = new Vector3 (0.0f, -9.81f, 0.0f);
 		wind = new Vector3(0.0f, 0.0f, 0.0f);
-		integrationMethod = Integration.Symplectic;
+		integrationMethod = Integration.Implicit;
 	}
 
 	/// <summary>
@@ -25,7 +25,9 @@ public class MassSpringCloth : MonoBehaviour {
 	public enum Integration {
 		Explicit = 0,
 		// Semi-Implicit Euler Integration Explicit in Velocity and Implicit in Position
-		Symplectic = 1
+		Symplectic = 1,
+		// Implicit Euler Integration (Unknown forces to compute new velocities and positions) - predictions-based
+		Implicit = 2
 	}
 
 	#region InEditorVariables
@@ -280,6 +282,9 @@ public class MassSpringCloth : MonoBehaviour {
 		        case Integration.Symplectic:
 			        StepSymplectic();
 			        break;
+		        case Integration.Implicit:
+			        StepImplicit();
+			        break;
 		        default:
 			        throw new System.Exception("[ERROR] Should never happen!");
 	        }
@@ -321,12 +326,6 @@ public class MassSpringCloth : MonoBehaviour {
 	/// Performs a simulation step in 1D using Symplectic integration.
 	/// </summary>
 	private void StepSymplectic() {
-		// First spring length update
-		//foreach (Spring spring in springs)
-		//{
-		//	spring.SubstepStartLengtUpdate();
-		//}
-		
 		// Update forces for each node of the mesh
 		foreach (Node node in nodes)
 		{
@@ -346,6 +345,42 @@ public class MassSpringCloth : MonoBehaviour {
 			if (!node.isFixed)
 			{
 				node.vel += timeStep / node.mass * node.force;
+				node.pos += timeStep * node.vel;
+			}
+		}
+
+		// Update the length of each spring after this step
+		foreach (Spring spring in springs)
+		{
+			spring.UpdateLength();
+		}
+	}
+	
+	/// <summary>
+	/// Performs a simulation step in 1D using Symplectic integration.
+	/// </summary>
+	private void StepImplicit() {
+		// Update forces for each node of the mesh
+		foreach (Node node in nodes)
+		{
+			node.force = Vector3.zero;
+			node.ComputeForces();
+		}
+
+		// Update forces for each spring of the mesh
+		foreach (Spring spring in springs)
+		{
+			spring.ComputeForces();
+		}
+
+		// Update implicit position and explicit velocity
+		foreach (Node node in nodes)
+		{
+			if (!node.isFixed)
+			{
+				// node.force is a prediction of the future forces calculated by approximation
+				// node.force = F(0) + F(h) (collisions implicit penalty forces)
+				node.vel += timeStep / node.mass * node.force;  
 				node.pos += timeStep * node.vel;
 			}
 		}

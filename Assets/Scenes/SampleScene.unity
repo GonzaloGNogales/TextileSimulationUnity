@@ -354,7 +354,7 @@ MonoBehaviour:
   timeStep: 0.01
   gravity: {x: 0, y: -9.81, z: 0}
   wind: {x: 0, y: 0, z: 0}
-  integrationMethod: 1
+  integrationMethod: 2
   nodes: []
   springs: []
 --- !u!1 &705507993
@@ -1003,7 +1003,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1521462781}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ac04e5280983272449621ad7a1bf6728, type: 3}
   m_Name: 
@@ -1079,7 +1079,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1521462781}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.97521, y: -17.65, z: -7.98}
+  m_LocalPosition: {x: -0.97521, y: -1, z: -7.98}
   m_LocalScale: {x: 3.5957, y: 3.5957, z: 3.5957}
   m_Children: []
   m_Father: {fileID: 0}
