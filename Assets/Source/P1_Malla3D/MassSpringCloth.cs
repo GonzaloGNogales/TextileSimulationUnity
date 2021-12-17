@@ -15,7 +15,7 @@ public class MassSpringCloth : MonoBehaviour {
 		substeps = 1;
 		timeStep = 0.01f;  // Default value 0.01f
 		gravity = new Vector3 (0.0f, -9.81f, 0.0f);
-		wind = new Vector3(3.4f, 0.0f, 0.0f);
+		wind = new Vector3(0.0f, 0.0f, 0.0f);
 		integrationMethod = Integration.Symplectic;
 	}
 
@@ -47,7 +47,8 @@ public class MassSpringCloth : MonoBehaviour {
     private Mesh _mesh;
     private Vector3[] _vertices;
     private int[] _triangles;
-    private int _actualIteration;
+    private int _actualWindAnimationIteration;
+    private int windUp;
 
     private class Edge {
 	    private int vertexA;
@@ -101,8 +102,8 @@ public class MassSpringCloth : MonoBehaviour {
     public void Start() {
 	    // Retrieve the mesh filter component
 	    _mesh = GetComponent<MeshFilter>().mesh;
-	    _actualIteration = 0;
-	    timeStep /= substeps;
+	    _actualWindAnimationIteration = 0;
+	    // timeStep /= substeps;  // This allows setting more substeps while keep adjusting the speed of the simulation (timeStep normalization)
 	    Debug.Log("New substep: " + timeStep);
 	    
 	    // Assign each vertex of the mesh a node behaviour
@@ -127,8 +128,7 @@ public class MassSpringCloth : MonoBehaviour {
 		    /////////////////////////////////////////////////////////////////////////////
 		    
 		    node.mass = 1.0f;  // Set node mass
-
-
+		    
 		    nodes.Add(node);  // Finally add node to the nodes list to iterate through all of them on fixed update loop
 		    idxNode++;
 	    }
@@ -244,12 +244,33 @@ public class MassSpringCloth : MonoBehaviour {
     public void FixedUpdate() {
         if (paused)
             return; // Not simulating
-
-        _actualIteration++;
-
+        
         // Substeps simulation
         for (int i = 0; i < substeps; ++i)
         {
+	        // Wind simulation implemented
+	        /***
+	        windUp++;
+	        if (windUp == 1000)
+	        {
+		        windUp = 0;
+		        _actualWindAnimationIteration++;  // Variable to update the actual wind iteration
+		        wind = new Vector3(0.0f, 0.0f, -6.0f);
+	        }
+	        if (_actualWindAnimationIteration % 2 == 0)
+	        {
+		        
+		        if (windUp == 300)
+		        {
+			        wind -= new Vector3(0.0f, 0.0f, 5.0f);
+		        }
+		        else if (windUp == 600)
+		        {
+			        wind -= new Vector3(0.0f, 0.0f, 2.5f);
+		        }
+	        }
+	        /**/
+	        
 	        // Select integration method
 	        switch (integrationMethod)
 	        {
