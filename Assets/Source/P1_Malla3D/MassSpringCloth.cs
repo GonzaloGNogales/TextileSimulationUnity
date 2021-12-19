@@ -1,5 +1,9 @@
 ﻿using UnityEngine;
 using System.Collections.Generic;
+using VectorXD = MathNet.Numerics.LinearAlgebra.Vector<double>;
+using MatrixXD = MathNet.Numerics.LinearAlgebra.Matrix<double>;
+using DenseVectorXD = MathNet.Numerics.LinearAlgebra.Double.DenseVector;
+using DenseMatrixXD = MathNet.Numerics.LinearAlgebra.Double.DenseMatrix;
 
 /// <summary>
 /// Basic physics manager capable of simulating a given Simulable
@@ -378,11 +382,56 @@ public class MassSpringCloth : MonoBehaviour {
 		{
 			if (!node.isFixed)
 			{
+				bool collision = false;
+				MatrixXD C = new DenseMatrixXD(3);
+				if (node.pos.y <= -1)
+				{
+					collision = true;
+					float contactStiffness = 500.0f;
+					MatrixXD I = DenseMatrixXD.CreateIdentity(3);
+					MatrixXD N = new DenseMatrixXD(3, 1);
+					N[0, 0] = 0;
+					N[1, 0] = 1;
+					N[2, 0] = 0;
+				
+					// Transpose computation
+					MatrixXD NT = N.Transpose();
+				
+					// Normal matrix multiplication
+					MatrixXD Nmat = N.Multiply(NT);
+					
+					// Penalty force differential with respect to node position
+					MatrixXD PenaltyDiff = - contactStiffness * Nmat;
+					C = I - (timeStep * timeStep / node.mass) * PenaltyDiff;
+					Debug.Log("Collsion detected in node => " + node.name);
+				}
+				else
+				{
+					// If there is no ground collision dF/dx is 0 so we just need the identity
+					C = DenseMatrixXD.CreateIdentity(3);
+				}
+
+				Vector3 antF = node.vel + timeStep / node.mass * node.force;
+				VectorXD antFDense = new DenseVectorXD(3);
+				antFDense[0] = antF[0];
+				antFDense[1] = antF[1];
+				antFDense[2] = antF[2];
+				
+				VectorXD newVelDense = C.Inverse() * antFDense;
+				Vector3 newVel = new Vector3((float) newVelDense[0], (float) newVelDense[1], (float) newVelDense[2]);
+
 				// node.force is a prediction of the future forces calculated by approximation
 				// node.force = F(0) + F(h) (collisions implicit penalty forces)
-				node.vel += timeStep / node.mass * node.force;  
+				if (collision) node.vel -= newVel;
+				else node.vel = newVel;
 				node.pos += timeStep * node.vel;
 			}
+
+			/*if (!node.isFixed)
+			{
+				node.vel += timeStep / node.mass * node.force;
+				node.pos += timeStep * node.vel;
+			}*/
 		}
 
 		// Update the length of each spring after this step
