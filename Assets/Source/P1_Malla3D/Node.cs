@@ -6,11 +6,13 @@ public class Node : MonoBehaviour {
     public Vector3 force;
     public float mass;
     public bool isFixed;
+    public bool inCollision;
 
     // Use this for initialization
     private void Awake() {
         pos = transform.position;
         vel = Vector3.zero;
+        inCollision = false;
     }
 
     void Start () {

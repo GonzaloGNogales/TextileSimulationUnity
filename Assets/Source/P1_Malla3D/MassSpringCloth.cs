@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using System.Collections.Generic;
+using UnityEngine.UIElements;
 using VectorXD = MathNet.Numerics.LinearAlgebra.Vector<double>;
 using MatrixXD = MathNet.Numerics.LinearAlgebra.Matrix<double>;
 using DenseVectorXD = MathNet.Numerics.LinearAlgebra.Double.DenseVector;
@@ -346,7 +347,7 @@ public class MassSpringCloth : MonoBehaviour {
 		// Update implicit position and explicit velocity
 		foreach (Node node in nodes)
 		{
-			if (!node.isFixed)
+			if (!node.isFixed && !node.inCollision)
 			{
 				node.vel += timeStep / node.mass * node.force;
 				node.pos += timeStep * node.vel;
@@ -382,28 +383,41 @@ public class MassSpringCloth : MonoBehaviour {
 		{
 			if (!node.isFixed)
 			{
-				bool collision = false;
 				MatrixXD C = new DenseMatrixXD(3);
-				if (node.pos.y <= -1)
+				if (node.pos.y < -1.0000f)
 				{
-					collision = true;
-					float contactStiffness = 500.0f;
+					// Contact normal and contact stiffness initialization when collision
+					float contactStiffness = 5000.0f;
 					MatrixXD I = DenseMatrixXD.CreateIdentity(3);
-					MatrixXD N = new DenseMatrixXD(3, 1);
-					N[0, 0] = 0;
-					N[1, 0] = 1;
-					N[2, 0] = 0;
+					MatrixXD n = new DenseMatrixXD(3, 1);
+					n[0, 0] = 0;
+					n[1, 0] = 1;
+					n[2, 0] = 0;
 				
 					// Transpose computation
-					MatrixXD NT = N.Transpose();
+					MatrixXD nt = n.Transpose();
 				
 					// Normal matrix multiplication
-					MatrixXD Nmat = N.Multiply(NT);
+					MatrixXD nMat = n.Multiply(nt);
 					
 					// Penalty force differential with respect to node position
-					MatrixXD PenaltyDiff = - contactStiffness * Nmat;
-					C = I - (timeStep * timeStep / node.mass) * PenaltyDiff;
-					Debug.Log("Collsion detected in node => " + node.name);
+					MatrixXD penaltyDiff = - contactStiffness * nMat;
+					
+					// Penalty force computation
+					Vector3 penetration = node.pos -  new Vector3(0.0f, -1.0000f, 0.0f);
+					VectorXD penetrationDense = new DenseVectorXD(3);
+					penetrationDense[0] = penetration[0];
+					penetrationDense[1] = penetration[1];
+					penetrationDense[2] = penetration[2];
+					VectorXD penaltyForceDense = penaltyDiff * penetrationDense;
+					Vector3 penaltyForce = new Vector3((float) penaltyForceDense[0], (float) penaltyForceDense[1], (float) penaltyForceDense[2]);
+					
+					// node.force is a prediction of the future forces calculated by approximation
+					// node.force = F(0) + F(h) (collisions implicit penalty forces)
+					node.force += penaltyForce;
+					
+					// Collision implicit operand calculation
+					C = I - timeStep * timeStep / node.mass * penaltyDiff;
 				}
 				else
 				{
@@ -419,19 +433,11 @@ public class MassSpringCloth : MonoBehaviour {
 				
 				VectorXD newVelDense = C.Inverse() * antFDense;
 				Vector3 newVel = new Vector3((float) newVelDense[0], (float) newVelDense[1], (float) newVelDense[2]);
-
-				// node.force is a prediction of the future forces calculated by approximation
-				// node.force = F(0) + F(h) (collisions implicit penalty forces)
-				if (collision) node.vel -= newVel;
-				else node.vel = newVel;
+				
+				// New velocity implicit assignment
+				node.vel = newVel;
 				node.pos += timeStep * node.vel;
 			}
-
-			/*if (!node.isFixed)
-			{
-				node.vel += timeStep / node.mass * node.force;
-				node.pos += timeStep * node.vel;
-			}*/
 		}
 
 		// Update the length of each spring after this step
