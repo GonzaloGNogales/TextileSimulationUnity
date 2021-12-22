@@ -18,7 +18,7 @@ public class Collideable : MonoBehaviour {
         // Get the mesh filter of the collideable object and allocate it's normals and vertices
         _mesh = GetComponent<MeshFilter>().mesh;
         _collideableNormals = _mesh.normals;
-        _height = transform.position.y;
+        _height = transform.position.y + 0.04f;
         Debug.Log("Ground is at height => " + _height);
 
         MatrixXD n = new DenseMatrixXD(3, 1);
@@ -53,7 +53,7 @@ public class Collideable : MonoBehaviour {
                 if (delta > 0)
                 {
                     // Contact stiffness initialization when collision
-                    float contactStiffness = 10000.0f;
+                    float contactStiffness = 1000000.0f;
                     
                     // Penalty force differential with respect to node position
                     MatrixXD penaltyDiff = - contactStiffness * _n;

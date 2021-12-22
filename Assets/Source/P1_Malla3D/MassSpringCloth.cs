@@ -21,7 +21,7 @@ public class MassSpringCloth : MonoBehaviour {
 		timeStep = 0.01f;  // Default value 0.01f
 		gravity = new Vector3 (0.0f, -9.81f, 0.0f);
 		wind = new Vector3(0.0f, 0.0f, 0.0f);
-		integrationMethod = Integration.Implicit;
+		integrationMethod = Integration.SymplecticWithImplicitCollisions;
 	}
 
 	/// <summary>
@@ -31,8 +31,10 @@ public class MassSpringCloth : MonoBehaviour {
 		Explicit = 0,
 		// Semi-Implicit Euler Integration Explicit in Velocity and Implicit in Position
 		Symplectic = 1,
+		SymplecticWithImplicitCollisions = 2,
+		DirectImplicitCollisions = 3,
 		// Implicit Euler Integration (Unknown forces to compute new velocities and positions) - predictions-based
-		Implicit = 2
+		Implicit = 4
 	}
 
 	#region InEditorVariables
@@ -266,7 +268,6 @@ public class MassSpringCloth : MonoBehaviour {
 	        }
 	        if (_actualWindAnimationIteration % 2 == 0)
 	        {
-		        
 		        if (windUp == 300)
 		        {
 			        wind -= new Vector3(0.0f, 0.0f, 5.0f);
@@ -286,6 +287,12 @@ public class MassSpringCloth : MonoBehaviour {
 			        break;
 		        case Integration.Symplectic:
 			        StepSymplectic();
+			        break;
+		        case Integration.SymplecticWithImplicitCollisions:
+			        StepSymplecticWithImplicitCollisions();
+			        break;
+		        case Integration.DirectImplicitCollisions:
+			        StepDirectImplicitCollisionsComputation();
 			        break;
 		        case Integration.Implicit:
 			        StepImplicit();
@@ -347,6 +354,40 @@ public class MassSpringCloth : MonoBehaviour {
 		// Update implicit position and explicit velocity
 		foreach (Node node in nodes)
 		{
+			if (!node.isFixed)
+			{
+				node.vel += timeStep / node.mass * node.force;
+				node.pos += timeStep * node.vel;
+			}
+		}
+
+		// Update the length of each spring after this step
+		foreach (Spring spring in springs)
+		{
+			spring.UpdateLength();
+		}
+	}
+
+	/// <summary>
+	/// Performs a simulation step in 1D using Symplectic integration and Implicit collisions computation.
+	/// </summary>
+	private void StepSymplecticWithImplicitCollisions() {
+		// Update forces for each node of the mesh
+		foreach (Node node in nodes)
+		{
+			node.force = Vector3.zero;
+			node.ComputeForces();
+		}
+
+		// Update forces for each spring of the mesh
+		foreach (Spring spring in springs)
+		{
+			spring.ComputeForces();
+		}
+
+		// Update implicit position and explicit velocity
+		foreach (Node node in nodes)
+		{
 			if (!node.isFixed && !node.inCollision)
 			{
 				node.vel += timeStep / node.mass * node.force;
@@ -362,9 +403,10 @@ public class MassSpringCloth : MonoBehaviour {
 	}
 	
 	/// <summary>
-	/// Performs a simulation step in 1D using Symplectic integration.
+	/// Performs a simulation step in 1D using Collision Implicit integration.
 	/// </summary>
-	private void StepImplicit() {
+	private void StepDirectImplicitCollisionsComputation()
+	{
 		// Update forces for each node of the mesh
 		foreach (Node node in nodes)
 		{
@@ -387,29 +429,26 @@ public class MassSpringCloth : MonoBehaviour {
 				if (node.pos.y < -1.0000f)
 				{
 					// Contact normal and contact stiffness initialization when collision
-					float contactStiffness = 5000.0f;
+					float contactStiffness = 10000.0f;
 					MatrixXD I = DenseMatrixXD.CreateIdentity(3);
-					MatrixXD n = new DenseMatrixXD(3, 1);
-					n[0, 0] = 0;
-					n[1, 0] = 1;
-					n[2, 0] = 0;
+					VectorXD n = new DenseVectorXD(3);
+					n[0] = 0;
+					n[1] = 1;
+					n[2] = 0;
 				
 					// Transpose computation
-					MatrixXD nt = n.Transpose();
+					//MatrixXD nt = n.OuterProduct();
 				
 					// Normal matrix multiplication
-					MatrixXD nMat = n.Multiply(nt);
+					MatrixXD nMat = n.OuterProduct(n); // OuterProduct performs N.Transpose()
 					
 					// Penalty force differential with respect to node position
 					MatrixXD penaltyDiff = - contactStiffness * nMat;
 					
 					// Penalty force computation
 					Vector3 penetration = node.pos -  new Vector3(0.0f, -1.0000f, 0.0f);
-					VectorXD penetrationDense = new DenseVectorXD(3);
-					penetrationDense[0] = penetration[0];
-					penetrationDense[1] = penetration[1];
-					penetrationDense[2] = penetration[2];
-					VectorXD penaltyForceDense = penaltyDiff * penetrationDense;
+					float delta = Vector3.Dot(penetration, new Vector3(0.0f, 1.0f, 0.0f));
+					VectorXD penaltyForceDense = penaltyDiff * (delta * n);
 					Vector3 penaltyForce = new Vector3((float) penaltyForceDense[0], (float) penaltyForceDense[1], (float) penaltyForceDense[2]);
 					
 					// node.force is a prediction of the future forces calculated by approximation
@@ -436,6 +475,51 @@ public class MassSpringCloth : MonoBehaviour {
 				
 				// New velocity implicit assignment
 				node.vel = newVel;
+				node.pos += timeStep * node.vel;
+			}
+		}
+
+		// Update the length of each spring after this step
+		foreach (Spring spring in springs)
+		{
+			spring.UpdateLength();
+		}
+	}
+	
+	/// <summary>
+	/// Performs a simulation step in 1D using General Implicit integration.
+	/// </summary>
+	private void StepImplicit() {
+		// Evaluate forces
+		// Update forces for each node of the mesh
+		foreach (Node node in nodes)
+		{
+			node.force = Vector3.zero;
+			node.ComputeForces();
+		}
+
+		// Update forces for each spring of the mesh
+		foreach (Spring spring in springs)
+		{
+			spring.ComputeForces();
+		}
+		
+		// Derivatives matrices computation
+		
+		// Linear system solving A * v(t+h) = b => v(t+h) = A^-1 * b
+		// A = massMat + timeStep * DampingMat + timeStep*timeStep * StiffnessMat
+		// b = (massMat + timeStep * DampingMat) * node.vel + timeStep * node.force
+
+		// Velocity and position implicit integration
+		foreach (Node node in nodes)
+		{
+			if (!node.isFixed)
+			{
+				// I need to find forceDiffPosition and forceDiffVelocity ...
+				float forceDiffPosition = 1.0f;
+				float forceDiffVelocity = 1.0f;
+				node.vel = ((node.mass - timeStep * forceDiffVelocity) * node.vel + timeStep * node.force) / 
+				           (node.mass - timeStep * forceDiffVelocity - timeStep*timeStep * forceDiffPosition);
 				node.pos += timeStep * node.vel;
 			}
 		}
